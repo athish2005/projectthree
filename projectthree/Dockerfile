@@ -1,14 +1,35 @@
-# ✅ Step 1: Use a reliable Java 17 runtime
-FROM eclipse-temurin:17-jdk-jammy
+# ============================
+# 🏗️ Stage 1: Build the JAR file
+# ============================
+FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
-# ✅ Step 2: Set a working directory
+# Set working directory
 WORKDIR /app
 
-# ✅ Step 3: Copy the JAR into the container
-COPY target/projectthree-0.0.1-SNAPSHOT.jar app.jar
+# Copy pom.xml and download dependencies first (for build cache)
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# ✅ Step 4: Expose the Spring Boot port
+# Copy the full source code
+COPY src ./src
+
+# Build the application JAR (skip tests for faster builds)
+RUN mvn clean package -DskipTests
+
+
+# ============================
+# 🚀 Stage 2: Run the application
+# ============================
+FROM eclipse-temurin:17-jdk-jammy
+
+# Set working directory
+WORKDIR /app
+
+# Copy the generated JAR from the builder stage
+COPY --from=builder /app/target/projectthree-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose the Spring Boot port
 EXPOSE 8080
 
-# ✅ Step 5: Run the JAR
+# Run the Spring Boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
